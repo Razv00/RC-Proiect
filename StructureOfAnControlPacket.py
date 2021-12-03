@@ -79,20 +79,3 @@ class Payload(ABC):
         return self.all_fields
     def GetLengths(self):
         return self.all_lengths
-
-class ControlPacket(ABC):
-    headerfix: HeaderFix()
-    headervariabil : HeaderVariabil()
-    payload : Payload()
-    def __init__(self, _headerfix, _headervariabil, _payload):
-        self.headerfix = _headerfix
-        self.headervariabil = _headervariabil
-        self.payload = _payload
-    def GetControlPacketType(self):
-        return self.GetControlPacketType()
-    def GetHeaderFix(self):
-        return self.headerfix
-    def GetHeaderVariabil(self):
-        return self.headervariabil
-    def GetPayload(self):
-        return self.payload
