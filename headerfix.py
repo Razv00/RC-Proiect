@@ -24,9 +24,7 @@ class HeaderFix(ABC):
         return self.remaining_length
 
     def string(self):
-        result = "HeaderFix{" + "[" + str(self.control_packet_type) + ", " + str(self.flags) + "][" + str(self.remaining_length) + "]" +"}\n"
+        result = "HeaderFix{" + str(self.control_packet_type) + ", " + str(self.flags) + ", " + str(self.remaining_length)+"}"
         return result
 
-if __name__ == "__main__":
-    Header = HeaderFix(0,0,0)
-    print(Header.string())
+
