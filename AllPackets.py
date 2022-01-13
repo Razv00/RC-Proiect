@@ -4,6 +4,23 @@ def generate(val):
     for i in range(val):
         string += format(0,'08b')
     return string
+
+
+def encodeRemainingLength(remLength):
+    if remLength == 0:
+        return "00000000"
+
+    remLengthStr = ""
+    while remLength > 0:
+        encoded = remLength % 128
+        remLength = remLength // 128
+
+        if remLength > 0:
+            encodedByte = (encoded | 128)
+
+        remLengthStr += format(encoded, '08b')
+
+    return remLengthStr
 class CONNECT(ABC):
     def __init__(self):
         self.FixedHeader = HeaderFix(0, 0, 0)
@@ -25,7 +42,7 @@ class CONNECT(ABC):
         self.Payload_password = ''
         self.Payload_password_length = 0
 
-    def createPacketConnect(self,client_id,username, password, keepAlive, connectFlags, willTopic,willMessage,):
+    def createPacketConnect(self,client_id,username, password, keepAlive, connectFlags, willMessage,willTopic):
         #headerfix
         self.FixedHeader= HeaderFix(1, 0, 0)
 
@@ -42,28 +59,28 @@ class CONNECT(ABC):
         self.Payload_client_id_length = len(client_id)
         # 7 User Name Flag | 6 Password Flag  | 5 Will Retain | 3-4  Will QoS|  Will Flag | 2 | 1 Clean Session | 0 Reserved
         pay_flag = str(format(self.VariabileHeader_connect_flags, '08b'))
-        if pay_flag[2] == "1":
+        if pay_flag[5] == "1":
             self.Payload_will_topic = willTopic
             self.Payload_will_topic_length = len(willTopic)
             self.Payload_will_message = willMessage
             self.Payload_will_message_length = len(willMessage)
 
-        if pay_flag[7] == "1":
+        if pay_flag[0] == "1":
             self.Payload_username = username
             self.Payload_username_length = len(username)
-            if pay_flag[6] == "1":
+            if pay_flag[1] == "1":
                 self.Payload_password = password
                 self.Payload_password_length = len(password)
 
         # trebuie sa fie calculat remaining_length
         suma_varhed_payload = 2 + self.VariabileHeader_protocol_name_length + 1 + 1 + 2 + 2 + self.Payload_client_id_length
-        if pay_flag[2] == "1":
-            suma_varhed_payload = self.Payload_will_topic_length + self.Payload_will_message_length  + 4
+        if pay_flag[5] == "1":
+            suma_varhed_payload += self.Payload_will_topic_length + self.Payload_will_message_length  + 4
 
-        if pay_flag[7] == "1":
-            suma_varhed_payload = self.Payload_username_length + 2
-            if pay_flag[6] == "1":
-                suma_varhed_payload = self.Payload_password_length + 2
+        if pay_flag[0] == "1":
+            suma_varhed_payload += self.Payload_username_length + 2
+            if pay_flag[1] == "1":
+                suma_varhed_payload += self.Payload_password_length + 2
         self.FixedHeader.SetRemainingLength(suma_varhed_payload)
 
     def encode(self):
@@ -71,7 +88,7 @@ class CONNECT(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b') #control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b') #flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  #remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  #remaining_length
 
         # codific headerul variabil
         encoded = encoded + generate(2 - 1) + format(self.VariabileHeader_protocol_name_length,'08b')  # self.VariabileHeader_protocol_name_length, 2 deoarece in documentatie protocol name este pe 2 bytes, byte 1 si byte 2
@@ -87,7 +104,7 @@ class CONNECT(ABC):
             encoded += format(ord(elem), '08b')
 
         pay_flag = str(format(self.VariabileHeader_connect_flags, '08b'))
-        if pay_flag[2] == "1":
+        if pay_flag[5] == "1":
             encoded += generate(2 - 1) + format(self.Payload_will_topic_length,'08b')
             for elem in self.Payload_will_topic:
                 encoded += format(ord(elem), '08b')
@@ -95,11 +112,11 @@ class CONNECT(ABC):
             for elem in self.Payload_will_message:
                 encoded += format(ord(elem), '08b')
 
-        if pay_flag[7] == "1":
+        if pay_flag[0] == "1":
             encoded += generate(2 - 1) + format(self.Payload_username_length,'08b')
             for elem in self.Payload_username:
                 encoded += format(ord(elem), '08b')
-            if pay_flag[6] == "1":
+            if pay_flag[1] == "1":
                 encoded += generate(2 - 1) + format(self.Payload_password_length,'08b')
                 for elem in self.Payload_password:
                     encoded += format(ord(elem), '08b')
@@ -155,7 +172,7 @@ class DecodeConnect(ABC):
             encoded = encoded[8:]
         connect_decode.Payload_client_id = client_id
         pay_flag = str(format(connect_decode.VariabileHeader_connect_flags, '08b'))
-        if pay_flag[2] == "1":
+        if pay_flag[5] == "1":
             connect_decode.Payload_will_topic_length = int(encoded[8:16], 2)
             encoded = encoded[16:]
             will_topic = ''
@@ -170,7 +187,7 @@ class DecodeConnect(ABC):
                 will_message += chr(int(encoded[0:8], 2))
                 encoded = encoded[8:]
             connect_decode.Payload_will_message = will_message
-        if pay_flag[7] == "1":
+        if pay_flag[0] == "1":
             connect_decode.Payload_username_length = int(encoded[8:16], 2)
             encoded = encoded[16:]
             username = ''
@@ -178,7 +195,7 @@ class DecodeConnect(ABC):
                 username += chr(int(encoded[0:8], 2))
                 encoded = encoded[8:]
             connect_decode.Payload_username = username
-            if pay_flag[6] == "1":
+            if pay_flag[1] == "1":
                 connect_decode.Payload_password_length = int(encoded[8:16], 2)
                 encoded = encoded[16:]
                 password = ''
@@ -212,7 +229,7 @@ class CONNACK(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())   # remaining_length
 
         #codific headerul variabil
         encoded = encoded + generate(1 - 1) + format(self.VariableHeader_SP,'08b')  # byte 1
@@ -267,7 +284,8 @@ class PUBLISH(ABC):
         self.FixedHeader = HeaderFix(3, int('{0:01b}'.format(DUP_flag) + '{0:02b}'.format(QoS_level) + '{0:01b}'.format(RETAIN), 2), 0)
 
         #header variabil
-        self.VariableHeader_pachet_identifier = pachet_identifier
+        if QoS_level == 2 or QoS_level == 1:
+            self.VariableHeader_pachet_identifier = pachet_identifier
         self.VariableHeader_topic_name = topic_name
         self.VariableHeader_topic_name_length = len(topic_name)
 
@@ -285,7 +303,7 @@ class PUBLISH(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
        #codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_pachet_identifier,'08b') #byte 6 si 7
@@ -366,7 +384,7 @@ class PUBACK(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         #codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -423,7 +441,7 @@ class PUBREC(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -481,7 +499,7 @@ class PUBREL(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())# remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -539,7 +557,7 @@ class PUBCOMP(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())# remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -610,7 +628,7 @@ class SUBSCRIBE(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -695,7 +713,7 @@ class SUBACK(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -774,7 +792,7 @@ class UNSUBSCRIBE(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -846,7 +864,7 @@ class UNSUBACK(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # codific header variabil
         encoded += generate(2 - 1) + format(self.VariableHeader_packet_ID, '08b')
@@ -902,7 +920,7 @@ class PINGREQ(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # nu header variabil
 
@@ -955,7 +973,7 @@ class PINGRESP(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # nu header variabil
 
@@ -1008,7 +1026,7 @@ class DISCONNECT(ABC):
         # codific headerul fix
         encoded += format(self.FixedHeader.GetControlPacketType(), '04b')  # control_packet_type
         encoded += format(self.FixedHeader.GetFlags(), '04b')  # flags
-        encoded += format(self.FixedHeader.GetRemainingLength(), '08b')  # remaining_length
+        encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
         # nu header variabil
 
@@ -1045,7 +1063,7 @@ class DecodeDisconnect(ABC):
         return disconnect_decode
 if __name__ == '__main__':
     test = CONNECT()
-    test.createPacketConnect('1','Teodora', 'parolaTeodorei', 22,'0100111', 'willTopic', 'willmessage')
+    test.createPacketConnect('firstClient', 'Teodora', 'Teodora', 0, '11111111', '/register','hello world!',)
     print("pachet creat connect " + test.string())
     encode = test.encode()
     print(encode)
