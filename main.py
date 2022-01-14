@@ -44,12 +44,16 @@ if __name__ == "__main__":
     print(in_binar)
 
     s.send(in_binar)
-    primesc = s.recv(2)
+
+
+    primesc = s.recv(4)
     print("date = " + date)
     date = back_str(primesc)
     test_decode = DecodePingresp()
     result = test_decode.decode(date)
     print("pachet decodificat pingreq " + result.string())
+    print()
+
     """
     test = PUBLISH()
     test.createPacketPublish(0, 0, 1, "topic_name", 1, "app_message")
@@ -63,31 +67,80 @@ if __name__ == "__main__":
     
     print()
     test = SUBSCRIBE()
-    test.createPacketSubscribe(10, ["verific", 'testez', 'incerc'], [0, 1, 0])
+    test.createPacketSubscribe(1, ["verific"], [0])
     print("pachet creat subscribe " + test.string())
     encode = test.encode()
     print(encode)
     in_binar = binar(encode)
     print(in_binar)
     s.send(in_binar)
-    
-    test = PUBLISH()
-    test.createPacketPublish(0, 0, 1, "topic_name", 0, "app_message")
-    print("pachet creat publish " + test.string())
-    encode = test.encode()
-    print(encode)
-    in_binar = binar(encode)
-    print(in_binar)
-    s.send(in_binar)
-    test = PUBLISH()
-    test.createPacketPublish(0, 1, 1, "topic_name1", 1, "app_message1")
-    print("pachet creat publish " + test.string())
-    encode = test.encode()
-    print(encode)
-    in_binar = binar(encode)
-    print(in_binar)
-    s.send(in_binar)
     """
+    test = PUBLISH()
+    test.createPacketPublish(0, 2, 1, "topic_name", 11, "message")
+    print("pachet creat publish " + test.string())
+    encode = test.encode()
+    print(encode)
+    in_binar = binar(encode)
+    print(in_binar)
+    s.send(in_binar)
+
+
+    primesc = s.recv(4)
+    date = back_str(primesc)
+    print("data mea " + date)
+    test_decode = DecodePubrec()
+    result = test_decode.decode(date)
+    print("pachet decodificat pubrec " + result.string())
+
+
+
+    test = UNSUBSCRIBE()
+    test.createPacketUnsubscribe(11, ["verific"])
+    print("pachet creat unsubscribe " + test.string())
+    encode = test.encode()
+    print(encode)
+    in_binar = binar(encode)
+    print(in_binar)
+    s.send(in_binar)
+
+    primesc = s.recv(4)
+    print("date = " + date)
+    date = back_str(primesc)
+    test_decode = DecodeUnsuback()
+    result = test_decode.decode(date)
+    print("pachet decodificat pingreq " + result.string())
+    print()
+
+
+    test_decode = DecodeUnsuback()
+    result = test_decode.decode(encode)
+    print("pachet decodific unsuback " + result.string())
+    print()
+
+
+    print()
+    test = PUBREL()
+    test.createPacketPubrel(11)
+    print("pachet creat pubrel " + test.string())
+    encode = test.encode()
+    print(encode)
+    in_binar = binar(encode)
+    print(in_binar)
+    s.send(in_binar)
+
+    primesc = s.recv(4)
+    print("date = " + date)
+    date = back_str(primesc)
+    test_decode = DecodePubcomp()
+    result = test_decode.decode(date)
+    print("pachet decodificat pubcomp " + result.string())
+    print()
+
+
+
+
+
+
 
     test = DISCONNECT()
     test.createPacketDisconnect()
