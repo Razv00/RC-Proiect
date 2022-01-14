@@ -1,3 +1,3 @@
 # RC-Proiect# 
-Aplicație pentru monitorizarea resurselor SO (Client MQTT)
-Realizat de Belciug Răzvan si Vecliuc Draia-Teodora
+Aplicație pentru monitorizarea resurselor SO (Client MQTT) 
+realizat de Belciug Răzvan si Vecliuc Draia-Teodora
