@@ -284,16 +284,19 @@ class PUBLISH(ABC):
         self.FixedHeader = HeaderFix(3, int('{0:01b}'.format(DUP_flag) + '{0:02b}'.format(QoS_level) + '{0:01b}'.format(RETAIN), 2), 0)
 
         #header variabil
+        self.VariableHeader_topic_name_length = len(topic_name)
+        self.VariableHeader_topic_name = topic_name
         if QoS_level == 2 or QoS_level == 1:
             self.VariableHeader_pachet_identifier = pachet_identifier
-        self.VariableHeader_topic_name = topic_name
-        self.VariableHeader_topic_name_length = len(topic_name)
+       
 
         #payload
         self.Payload_app_message = app_message
 
+        suma_varhed_payload = 2  + self.VariableHeader_topic_name_length
         #calculez remaining_length
-        suma_varhed_payload = 2 + 2 + self.VariableHeader_topic_name_length
+        if QoS_level == 2 or QoS_level == 1:
+            suma_varhed_payload =+ 2
 
         self.FixedHeader.SetRemainingLength(suma_varhed_payload + int('{0:01b}'.format(DUP_flag) + '{0:02b}'.format(QoS_level) + '{0:01b}'.format(RETAIN), 2) + len(self.Payload_app_message))
 
@@ -306,10 +309,11 @@ class PUBLISH(ABC):
         encoded += encodeRemainingLength(self.FixedHeader.GetRemainingLength())  # remaining_length
 
        #codific header variabil
-        encoded += generate(2 - 1) + format(self.VariableHeader_pachet_identifier,'08b') #byte 6 si 7
+      
         encoded += generate(2 - 1) + format(self.VariableHeader_topic_name_length, '08b')  # byte 6 si 7
         for elem in self.VariableHeader_topic_name:
             encoded += format(ord(elem), '08b')
+        encoded += generate(2 - 1) + format(self.VariableHeader_pachet_identifier, '08b')  # byte 6 si 7
 
         #codific payload
         encoded += format(len(self.Payload_app_message), '08b')
@@ -604,13 +608,13 @@ class SUBSCRIBE(ABC):
 
     def createPacketSubscribe(self, packet_ID, topics, QoS):
         # headerfix
-        self.FixedHeader = HeaderFix(8, 2, 2)
+        self.FixedHeader = HeaderFix(8, 2, 0)
 
         # header variabil
         self.VariableHeader_packet_ID = packet_ID
 
         # payload
-        index = 0;
+        index = 0
         length_payload = 0
         for elem in topics:
             self.Payload_topics.append(len(elem))
@@ -772,7 +776,7 @@ class UNSUBSCRIBE(ABC):
 
     def createPacketUnsubscribe(self, packet_ID, topics):
         # headerfix
-        self.FixedHeader = HeaderFix(10, 2, 2)
+        self.FixedHeader = HeaderFix(10, 2, 0)
 
         # header variabil
         self.VariableHeader_packet_ID = packet_ID
